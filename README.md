@@ -49,7 +49,7 @@ The game is structured as follows:
 ### Prerequisites
 
 - Web server with PHP 7.0+
-- Groq API key (set as environment variable `GROQ_API_KEY`)
+- Groq API key (set as environment variable in config.php file (add it) `GROQ_API_KEY`)
 
 ### Installation
 
@@ -58,23 +58,24 @@ The game is structured as follows:
    git clone https://github.com/lalomorales22/penguin-programming-game.git
    ```
 
-2. Set up your environment variables:
+2. Set up your environment variables in the config.php file:
    ```
-   # For Linux/Mac
-   export GROQ_API_KEY="your_groq_api_key_here"
-   
-   # For Windows
-   setx GROQ_API_KEY "your_groq_api_key_here"
+   GROQ_API_KEY="your_groq_api_key_here"
+
    ```
 
-3. Open your web browser and navigate to the game URL on your server
+3. In Terminal run a php server in that directory:
+4. ```
+   php -S localhost:8000
+   ```
+   Open your web browser and navigate to the game URL on your server
 
 ## How to Play
 
 ### Objectives
 
 - Explore the facility and navigate through different server rooms
-- Interact with NPCs to gather information about the Iceberg Protocol
+- Interact with AI NPCs to gather information about the Iceberg Protocol
 - Solve puzzles to increase your skills and gain access to restricted areas
 - Find and decode the Iceberg Protocol data
 
