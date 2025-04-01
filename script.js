@@ -17,8 +17,12 @@ const gameState = {
     visitedLevels: {},
     activeNPC: null,
     activePuzzle: null,
-    lockedDoors: {}       // Track which doors are locked (by ID)
+    lockedDoors: {},       // Track which doors are locked (by ID)
+    completedPuzzles: []  // Track which puzzles have been completed
 };
+
+// Map to store relationships between exits and puzzles
+const exitDoorPuzzleMap = {};
 
 // Constants
 const TILE_SIZE = 1;
@@ -46,7 +50,8 @@ const TileType = {
     DESK: 'desk',
     CHAIR: 'chair',
     NPC: 'npc',
-    PUZZLE: 'puzzle'
+    PUZZLE: 'puzzle',
+    PORTAL: 'portal'  // New tile type for the Vibeverse Portal
 };
 
 // Map tile values to types
@@ -70,7 +75,9 @@ const tileMapping = {
     23: TileType.EXIT_BOTTOM_LOCKED,
     24: TileType.EXIT_TOP_LOCKED,
     25: TileType.EXIT_RIGHT_LOCKED,
-    26: TileType.EXIT_LEFT_LOCKED
+    26: TileType.EXIT_LEFT_LOCKED,
+    // Portal tile
+    30: TileType.PORTAL
 };
 
 // Reverse mapping for level generation
@@ -971,7 +978,7 @@ async function loadLevel(coords, entryDirection) {
     
     // Fetch the level from the server
     try {
-        const response = await fetch('index.php', {
+        const response = await fetch('level.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
@@ -1152,8 +1159,45 @@ function assignPuzzlesToDoors() {
             const exitId = `exit_${gameState.currentLevel[0]}_${gameState.currentLevel[1]}_${exit.userData.gridX}_${exit.userData.gridZ}`;
             puzzle.userData.unlocksExitId = exitId;
             
+            // Store in the global mapping
+            exitDoorPuzzleMap[exitId] = puzzle.userData.puzzleId;
+            
             console.log(`Puzzle at [${puzzle.userData.gridX}, ${puzzle.userData.gridZ}] assigned to unlock exit at [${exit.userData.gridX}, ${exit.userData.gridZ}]`);
         }
+    }
+}
+
+// Function to assign a puzzle to a specific door
+function assignPuzzleToDoor(exitId) {
+    // Find available puzzles
+    const puzzles = interactableObjects.filter(obj => obj.userData.type === TileType.PUZZLE);
+    
+    // Check if we have any puzzles
+    if (puzzles.length === 0) {
+        console.log(`No puzzles available to assign to exit ${exitId}`);
+        return false;
+    }
+    
+    // Find a puzzle that hasn't been assigned yet
+    const availablePuzzle = puzzles.find(puzzle => 
+        !puzzle.userData.unlocksExitId || 
+        !exitDoorPuzzleMap[puzzle.userData.unlocksExitId]
+    );
+    
+    if (availablePuzzle) {
+        // Assign the puzzle to this exit
+        availablePuzzle.userData.unlocksExitId = exitId;
+        exitDoorPuzzleMap[exitId] = availablePuzzle.userData.puzzleId;
+        
+        console.log(`Assigned puzzle at [${availablePuzzle.userData.gridX}, ${availablePuzzle.userData.gridZ}] to exit ${exitId}`);
+        return true;
+    } else {
+        // If all puzzles are already assigned, use the first one as fallback
+        const fallbackPuzzle = puzzles[0];
+        exitDoorPuzzleMap[exitId] = fallbackPuzzle.userData.puzzleId;
+        
+        console.log(`All puzzles already assigned. Using puzzle at [${fallbackPuzzle.userData.gridX}, ${fallbackPuzzle.userData.gridZ}] for exit ${exitId}`);
+        return true;
     }
 }
 
@@ -1420,6 +1464,96 @@ function createLevel(layout) {
                 );
                 scene.add(puzzleLight);
             }
+            
+            // Add portal effects
+            if (tileType === TileType.PORTAL) {
+                // Add swirling light effect
+                const portalLight = new THREE.PointLight(0xaa00ff, 1.0, TILE_SIZE * 3);
+                portalLight.position.set(
+                    x * TILE_SIZE,
+                    TILE_SIZE * 0.5,
+                    z * TILE_SIZE
+                );
+                scene.add(portalLight);
+                
+                // Add additional smaller lights that will animate
+                for (let i = 0; i < 3; i++) {
+                    const angle = (i / 3) * Math.PI * 2;
+                    const orbitLight = new THREE.PointLight(
+                        [0xff00ff, 0xff0088, 0x8800ff][i],
+                        0.5,
+                        TILE_SIZE * 1.5
+                    );
+                    
+                    orbitLight.position.set(
+                        x * TILE_SIZE + Math.cos(angle) * 0.3,
+                        TILE_SIZE * (0.3 + i * 0.2),
+                        z * TILE_SIZE + Math.sin(angle) * 0.3
+                    );
+                    
+                    // Store initial angle for animation
+                    orbitLight.userData = {
+                        centerX: x * TILE_SIZE,
+                        centerZ: z * TILE_SIZE,
+                        angle: angle,
+                        radius: 0.3,
+                        speed: 1.5 + i * 0.5,
+                        verticalSpeed: 0.5 + i * 0.3,
+                        baseHeight: TILE_SIZE * (0.3 + i * 0.2)
+                    };
+                    
+                    scene.add(orbitLight);
+                    
+                    // Add to a special array for animation
+                    if (!window.portalLights) {
+                        window.portalLights = [];
+                    }
+                    window.portalLights.push(orbitLight);
+                }
+                
+                // Create a label for the portal
+                const labelGeometry = new THREE.PlaneGeometry(TILE_SIZE * 1.2, TILE_SIZE * 0.3);
+                
+                // Create canvas for the label
+                const labelCanvas = document.createElement('canvas');
+                labelCanvas.width = 256;
+                labelCanvas.height = 64;
+                const labelCtx = labelCanvas.getContext('2d');
+                
+                // Draw label text
+                labelCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                labelCtx.fillRect(0, 0, 256, 64);
+                labelCtx.fillStyle = '#ffffff';
+                labelCtx.strokeStyle = '#aa00ff';
+                labelCtx.lineWidth = 2;
+                labelCtx.font = 'bold 24px Arial';
+                labelCtx.textAlign = 'center';
+                labelCtx.textBaseline = 'middle';
+                labelCtx.strokeText('VIBEVERSE PORTAL', 128, 32);
+                labelCtx.fillText('VIBEVERSE PORTAL', 128, 32);
+                
+                // Create texture from canvas
+                const labelTexture = new THREE.CanvasTexture(labelCanvas);
+                
+                // Create material with the label texture
+                const labelMaterial = new THREE.MeshBasicMaterial({
+                    map: labelTexture,
+                    transparent: true,
+                    side: THREE.DoubleSide
+                });
+                
+                // Create mesh with the geometry and material
+                const label = new THREE.Mesh(labelGeometry, labelMaterial);
+                
+                // Position label above the portal
+                label.position.set(x * TILE_SIZE, TILE_SIZE * 1.2, z * TILE_SIZE);
+                
+                // Make label face the camera
+                label.rotation.x = -Math.PI / 4;
+                
+                // Add label to the scene
+                scene.add(label);
+            }
         }
     }
 }
@@ -1482,6 +1616,9 @@ function createTexture(type) {
             break;
         case TileType.PUZZLE:
             color = '#006666';
+            break;
+        case TileType.PORTAL:
+            color = '#8800ff'; // Purple for the portal
             break;
         default:
             color = '#444444';
@@ -1843,6 +1980,11 @@ function setupEventListeners() {
             return;
         }
         
+        // Skip if mobile controls are active - don't allow click to move on mobile
+        if (mobileControls.classList.contains('mobile-active')) {
+            return;
+        }
+        
         // Get mouse position in normalized device coordinates
         const mouseVector = new THREE.Vector2(
             (e.clientX / window.innerWidth) * 2 - 1,
@@ -2098,6 +2240,127 @@ function setupEventListeners() {
             inventoryPanel.style.display = 'block';
         }
     });
+    
+    // Mobile controls
+    const mobileToggle = document.getElementById('mobileToggle');
+    const mobileControls = document.getElementById('mobileControls');
+    const cameraControls = document.getElementById('cameraControls');
+    
+    // Get mobile control buttons
+    const upBtn = document.getElementById('upBtn');
+    const leftBtn = document.getElementById('leftBtn');
+    const rightBtn = document.getElementById('rightBtn');
+    const downBtn = document.getElementById('downBtn');
+    const centerBtn = document.getElementById('centerBtn');
+    const interactBtn = document.getElementById('interactBtn');
+    const terminalBtn = document.getElementById('terminalBtn');
+    const inventoryBtn = document.getElementById('inventoryBtn');
+    const zoomBtn = document.getElementById('zoomBtn');
+    const rotateCameraLeft = document.getElementById('rotateCameraLeft');
+    const resetCamera = document.getElementById('resetCamera');
+    const rotateCameraRight = document.getElementById('rotateCameraRight');
+    
+    // Mobile device detection
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // Auto-enable on mobile devices
+    if (isMobile) {
+        mobileControls.classList.add('mobile-active');
+        cameraControls.classList.add('mobile-active');
+    }
+    
+    // Mobile toggle button
+    mobileToggle.addEventListener('click', () => {
+        mobileControls.classList.toggle('mobile-active');
+        cameraControls.classList.toggle('mobile-active');
+    });
+    
+    // D-pad controls - touch start
+    upBtn.addEventListener('touchstart', () => { keys.w = true; });
+    leftBtn.addEventListener('touchstart', () => { keys.a = true; });
+    rightBtn.addEventListener('touchstart', () => { keys.d = true; });
+    downBtn.addEventListener('touchstart', () => { keys.s = true; });
+    
+    // D-pad controls - touch end
+    upBtn.addEventListener('touchend', () => { keys.w = false; });
+    leftBtn.addEventListener('touchend', () => { keys.a = false; });
+    rightBtn.addEventListener('touchend', () => { keys.d = false; });
+    downBtn.addEventListener('touchend', () => { keys.s = false; });
+    
+    // Center button - find nearest interactable
+    centerBtn.addEventListener('click', () => {
+        moveTarget = null;
+        targetIndicator.visible = false;
+        interactWithNearbyObject();
+    });
+    
+    // Action buttons
+    interactBtn.addEventListener('click', () => {
+        interactWithNearbyObject();
+    });
+    
+    terminalBtn.addEventListener('click', () => {
+        openNearestTerminal();
+    });
+    
+    inventoryBtn.addEventListener('click', () => {
+        if (inventoryPanel.style.display === 'block') {
+            inventoryPanel.style.display = 'none';
+        } else {
+            updateInventoryDisplay();
+            inventoryPanel.style.display = 'block';
+        }
+    });
+    
+    zoomBtn.addEventListener('click', () => {
+        // Toggle between zoom levels
+        if (cameraSettings.zoom > cameraSettings.minZoom + 0.1) {
+            cameraSettings.zoom = cameraSettings.minZoom;
+        } else {
+            cameraSettings.zoom = cameraSettings.maxZoom;
+        }
+    });
+    
+    // Camera rotation controls
+    rotateCameraLeft.addEventListener('touchstart', () => {
+        cameraSettings.targetRotationVelocity = cameraSettings.rotationSpeed * 5;
+    });
+    
+    rotateCameraLeft.addEventListener('touchend', () => {
+        cameraSettings.targetRotationVelocity = 0;
+        cameraSettings.currentRotationVelocity = 0;
+    });
+    
+    rotateCameraRight.addEventListener('touchstart', () => {
+        cameraSettings.targetRotationVelocity = -cameraSettings.rotationSpeed * 5;
+    });
+    
+    rotateCameraRight.addEventListener('touchend', () => {
+        cameraSettings.targetRotationVelocity = 0;
+        cameraSettings.currentRotationVelocity = 0;
+    });
+    
+    resetCamera.addEventListener('click', () => {
+        cameraSettings.rotation = 0;
+        cameraSettings.tilt = 0.5;
+        cameraSettings.panOffset = { x: 0, z: 0 };
+        cameraSettings.targetPanOffset = { x: 0, z: 0 };
+    });
+    
+    // Prevent default touchmove behavior to avoid page scrolling while using controls
+    document.addEventListener('touchmove', function(e) {
+        if (e.target.closest('.mobile-controls, .camera-controls')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    // Add viewport meta tag for better mobile experience
+    if (!document.querySelector('meta[name="viewport"]')) {
+        const viewportMeta = document.createElement('meta');
+        viewportMeta.name = 'viewport';
+        viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        document.head.appendChild(viewportMeta);
+    }
 }
 
 // Handle interaction with nearby objects
@@ -2378,41 +2641,65 @@ function updatePuzzleInterface(puzzleData) {
 
 // Function to update puzzle visuals based on completion status
 function updatePuzzleVisuals() {
-    // Go through all puzzle objects in the level
-    const puzzles = interactableObjects.filter(obj => obj.userData.type === TileType.PUZZLE);
+    // Safety check for interactableObjects
+    if (!interactableObjects || !Array.isArray(interactableObjects)) {
+        console.warn("Cannot update puzzle visuals: interactableObjects is not available");
+        return;
+    }
     
-    puzzles.forEach(puzzle => {
-        if (puzzle.userData.completed) {
-            // Change the material to indicate completion
-            if (!puzzle.userData.visuallyMarkedCompleted) {
-                // Create a new material with a green glow
-                const completedMaterial = new THREE.MeshStandardMaterial({
-                    map: textureCache[TileType.PUZZLE],
-                    emissive: 0x00ff00,
-                    emissiveIntensity: 0.5
-                });
-                
-                // Apply the new material
-                puzzle.material = completedMaterial;
-                puzzle.material.needsUpdate = true;
-                
-                // Add a "completed" effect
-                const completionEffect = new THREE.PointLight(0x00ff00, 0.8, TILE_SIZE * 3);
-                completionEffect.position.set(
-                    puzzle.position.x,
-                    puzzle.position.y + TILE_SIZE * 0.5,
-                    puzzle.position.z
-                );
-                scene.add(completionEffect);
-                
-                // Store a reference to the effect
-                puzzle.userData.completionEffect = completionEffect;
-                
-                // Mark as visually updated
-                puzzle.userData.visuallyMarkedCompleted = true;
+    try {
+        // Go through all puzzle objects in the level
+        const puzzles = interactableObjects.filter(obj => 
+            obj && obj.userData && obj.userData.type === TileType.PUZZLE
+        );
+        
+        puzzles.forEach(puzzle => {
+            // Check that we have a valid puzzle and that it's completed
+            if (!puzzle || !puzzle.userData) return;
+            
+            // Mark puzzles as completed if they're in the completedPuzzles array
+            if (gameState.completedPuzzles && gameState.completedPuzzles.includes(puzzle.userData.puzzleId)) {
+                puzzle.userData.completed = true;
             }
-        }
-    });
+            
+            if (puzzle.userData.completed) {
+                // Change the material to indicate completion
+                if (!puzzle.userData.visuallyMarkedCompleted) {
+                    try {
+                        // Create a new material with a green glow
+                        const completedMaterial = new THREE.MeshStandardMaterial({
+                            map: textureCache[TileType.PUZZLE],
+                            emissive: 0x00ff00,
+                            emissiveIntensity: 0.5
+                        });
+                        
+                        // Apply the new material
+                        puzzle.material = completedMaterial;
+                        puzzle.material.needsUpdate = true;
+                        
+                        // Add a "completed" effect
+                        const completionEffect = new THREE.PointLight(0x00ff00, 0.8, TILE_SIZE * 3);
+                        completionEffect.position.set(
+                            puzzle.position.x,
+                            puzzle.position.y + TILE_SIZE * 0.5,
+                            puzzle.position.z
+                        );
+                        scene.add(completionEffect);
+                        
+                        // Store a reference to the effect
+                        puzzle.userData.completionEffect = completionEffect;
+                        
+                        // Mark as visually updated
+                        puzzle.userData.visuallyMarkedCompleted = true;
+                    } catch (err) {
+                        console.error("Error updating puzzle visual:", err);
+                    }
+                }
+            }
+        });
+    } catch (err) {
+        console.error("Error in updatePuzzleVisuals:", err);
+    }
 }
 
 // Submit puzzle solution
@@ -2951,6 +3238,13 @@ function movePlayer(deltaTime) {
             const tileValue = gameState.levelData.layout[newZ][newX];
             const tileType = tileMapping[tileValue];
             
+            // Check if the tile is a portal
+            if (tileType === TileType.PORTAL) {
+                // Handle portal entry - redirect to Vibeverse
+                enterPortal();
+                return false;
+            }
+            
             // Check if the tile is a locked door
             const isLockedDoor = tileType && tileType.includes('exit') && (
                 tileType.includes('locked') || 
@@ -3012,44 +3306,86 @@ function movePlayer(deltaTime) {
     return moved;
 }
 
+// Handle player entering the Vibeverse portal
+function enterPortal() {
+    // Show portal entry message
+    showDialogue("Entering Vibeverse Portal...", 2000);
+
+    // After a brief delay, redirect to the portal URL
+    setTimeout(() => {
+        // Build the portal URL with parameters
+        const portalURL = new URL('http://portal.pieter.com');
+        
+        // Add parameters
+        portalURL.searchParams.append('username', 'penguin_hacker');
+        portalURL.searchParams.append('color', '00ffff'); // Cyan like the player's glow
+        portalURL.searchParams.append('speed', '1.5');
+        portalURL.searchParams.append('ref', window.location.href);
+        
+        // Additional optional parameters
+        portalURL.searchParams.append('avatar_url', '');
+        portalURL.searchParams.append('team', 'hackers');
+        
+        // Redirect to the portal
+        window.location.href = portalURL.toString();
+    }, 2000);
+}
+
 // Update camera to follow player with improved smooth motion
 function updateCamera(deltaTime) {
-    // Update camera rotation and tilt with damping for smooth motion
-    cameraSettings.currentRotationVelocity += (cameraSettings.targetRotationVelocity - cameraSettings.currentRotationVelocity) * 0.1;
-    cameraSettings.currentTiltVelocity += (cameraSettings.targetTiltVelocity - cameraSettings.currentTiltVelocity) * 0.1;
+    // Get reference to mobile controls
+    const mobileControlsActive = document.getElementById('mobileControls').classList.contains('mobile-active');
     
-    // Apply velocities
-    cameraSettings.rotation += cameraSettings.currentRotationVelocity;
-    cameraSettings.tilt += cameraSettings.currentTiltVelocity;
-    
-    // Apply damping to reduce wobbling
-    cameraSettings.currentRotationVelocity *= cameraSettings.dampingFactor;
-    cameraSettings.currentTiltVelocity *= cameraSettings.dampingFactor;
-    
-    // Reset velocities if they get too small (use more aggressive threshold)
-    if (Math.abs(cameraSettings.currentRotationVelocity) < 0.00005) {
+    // If mobile controls are active, use a fixed overhead camera
+    if (mobileControlsActive) {
+        // Use fixed rotation and tilt for mobile
+        cameraSettings.rotation = 0;
+        cameraSettings.tilt = 0.7; // More overhead view for better visibility
         cameraSettings.currentRotationVelocity = 0;
-        // Also reset target velocity to ensure it doesn't restart
-        if (Math.abs(cameraSettings.targetRotationVelocity) < 0.00005) {
-            cameraSettings.targetRotationVelocity = 0;
-        }
-    }
-    
-    if (Math.abs(cameraSettings.currentTiltVelocity) < 0.00005) {
         cameraSettings.currentTiltVelocity = 0;
-        // Also reset target velocity to ensure it doesn't restart
-        if (Math.abs(cameraSettings.targetTiltVelocity) < 0.00005) {
-            cameraSettings.targetTiltVelocity = 0;
+        cameraSettings.targetRotationVelocity = 0;
+        cameraSettings.targetTiltVelocity = 0;
+        cameraSettings.panOffset = { x: 0, z: 0 };
+        cameraSettings.targetPanOffset = { x: 0, z: 0 };
+    } else {
+        // Standard desktop camera with rotation and tilt
+        // Update camera rotation and tilt with damping for smooth motion
+        cameraSettings.currentRotationVelocity += (cameraSettings.targetRotationVelocity - cameraSettings.currentRotationVelocity) * 0.1;
+        cameraSettings.currentTiltVelocity += (cameraSettings.targetTiltVelocity - cameraSettings.currentTiltVelocity) * 0.1;
+        
+        // Apply velocities
+        cameraSettings.rotation += cameraSettings.currentRotationVelocity;
+        cameraSettings.tilt += cameraSettings.currentTiltVelocity;
+        
+        // Apply damping to reduce wobbling
+        cameraSettings.currentRotationVelocity *= cameraSettings.dampingFactor;
+        cameraSettings.currentTiltVelocity *= cameraSettings.dampingFactor;
+        
+        // Reset velocities if they get too small (use more aggressive threshold)
+        if (Math.abs(cameraSettings.currentRotationVelocity) < 0.00005) {
+            cameraSettings.currentRotationVelocity = 0;
+            // Also reset target velocity to ensure it doesn't restart
+            if (Math.abs(cameraSettings.targetRotationVelocity) < 0.00005) {
+                cameraSettings.targetRotationVelocity = 0;
+            }
         }
+        
+        if (Math.abs(cameraSettings.currentTiltVelocity) < 0.00005) {
+            cameraSettings.currentTiltVelocity = 0;
+            // Also reset target velocity to ensure it doesn't restart
+            if (Math.abs(cameraSettings.targetTiltVelocity) < 0.00005) {
+                cameraSettings.targetTiltVelocity = 0;
+            }
+        }
+        
+        // Apply limits to tilt
+        cameraSettings.tilt = Math.max(cameraSettings.tiltMin, 
+                               Math.min(cameraSettings.tiltMax, cameraSettings.tilt));
+        
+        // Smooth the panning motion
+        cameraSettings.panOffset.x += (cameraSettings.targetPanOffset.x - cameraSettings.panOffset.x) * 0.1;
+        cameraSettings.panOffset.z += (cameraSettings.targetPanOffset.z - cameraSettings.panOffset.z) * 0.1;
     }
-    
-    // Apply limits to tilt
-    cameraSettings.tilt = Math.max(cameraSettings.tiltMin, 
-                           Math.min(cameraSettings.tiltMax, cameraSettings.tilt));
-    
-    // Smooth the panning motion
-    cameraSettings.panOffset.x += (cameraSettings.targetPanOffset.x - cameraSettings.panOffset.x) * 0.1;
-    cameraSettings.panOffset.z += (cameraSettings.targetPanOffset.z - cameraSettings.panOffset.z) * 0.1;
     
     // Calculate camera position based on rotation, tilt and zoom
     const distanceAdjusted = cameraSettings.distance * cameraSettings.zoom;
@@ -3068,7 +3404,7 @@ function updateCamera(deltaTime) {
     const targetY = cameraSettings.height * cameraSettings.zoom * verticalFactor;
     
     // Smooth camera movement based on deltaTime
-    const smoothFactor = Math.min(5.0 * deltaTime, 0.2); // Reduced for smoother motion
+    const smoothFactor = mobileControlsActive ? 0.5 : Math.min(5.0 * deltaTime, 0.2); // Faster snap to position on mobile
     camera.position.x += (targetX - camera.position.x) * smoothFactor;
     camera.position.z += (targetZ - camera.position.z) * smoothFactor;
     camera.position.y += (targetY - camera.position.y) * smoothFactor;
@@ -3116,6 +3452,27 @@ function animate(currentTime) {
                              child.userData.originalIntensity;
         }
     });
+    
+    // Animate portal lights
+    if (window.portalLights && window.portalLights.length > 0) {
+        window.portalLights.forEach(light => {
+            if (light && light.userData) {
+                // Update angle
+                light.userData.angle += light.userData.speed * deltaTime;
+                
+                // Calculate new position
+                light.position.x = light.userData.centerX + Math.cos(light.userData.angle) * light.userData.radius;
+                light.position.z = light.userData.centerZ + Math.sin(light.userData.angle) * light.userData.radius;
+                
+                // Animate vertical position
+                light.position.y = light.userData.baseHeight + 
+                                  Math.sin(time * light.userData.verticalSpeed) * 0.2;
+                
+                // Pulsate intensity
+                light.intensity = 0.5 + Math.sin(time * 2 + light.userData.angle) * 0.3;
+            }
+        });
+    }
     
     // Make the player's glow pulsate
     if (player.children[4]) { // Glow sphere

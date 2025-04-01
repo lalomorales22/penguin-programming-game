@@ -300,6 +300,7 @@ function getDebugInfo() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Penguin Hacker RPG</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
     <div id="loading">
@@ -362,6 +363,35 @@ function getDebugInfo() {
             <div id="debugHeader">DEBUG INFO</div>
             <div id="debugContent"></div>
         </div>
+        
+        <!-- Mobile Toggle Button -->
+        <div class="mobile-toggle" id="mobileToggle"></div>
+        
+        <!-- Camera Controls -->
+        <div class="camera-controls" id="cameraControls">
+            <button id="rotateCameraLeft">↺</button>
+            <button id="resetCamera">R</button>
+            <button id="rotateCameraRight">↻</button>
+        </div>
+        
+        <!-- Mobile Controls -->
+        <div class="mobile-controls" id="mobileControls">
+            <div class="controls-container">
+                <div class="d-pad">
+                    <button class="up-btn" id="upBtn">↑</button>
+                    <button class="left-btn" id="leftBtn">←</button>
+                    <button class="center-btn" id="centerBtn">•</button>
+                    <button class="right-btn" id="rightBtn">→</button>
+                    <button class="down-btn" id="downBtn">↓</button>
+                </div>
+                <div class="action-buttons">
+                    <button id="interactBtn">SPACE</button>
+                    <button id="terminalBtn">E</button>
+                    <button id="inventoryBtn">INV</button>
+                    <button id="zoomBtn">ZOOM</button>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
@@ -369,6 +399,7 @@ function getDebugInfo() {
     <script src="robot_models.js"></script>
     <script src="npc_movement.js"></script>
     <script src="script.js"></script>
+    <script src="multiplayer.js"></script>
     
     <!-- Initialize debug info if needed -->
     <script>

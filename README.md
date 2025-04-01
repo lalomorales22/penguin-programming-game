@@ -1,19 +1,18 @@
-# Penguin Programming RPG 
+# Penguin Hacker RPG
 
-A dark hooded figure hacks the gibson-themed, browser-based 3D hacking game where you play as a hooded penguin infiltrating a high-security corporate network.
-![Screenshot 2025-04-01 at 2 31 41 PM](https://github.com/user-attachments/assets/40d7f041-7a9b-4425-bd2a-96919ee1f56b)
+A cyberpunk-themed, browser-based 3D hacking game where you play as a hooded penguin infiltrating a high-security corporate network.
 
-
+![Penguin Hacker RPG Screenshot](screenshot.png)
 
 ## Overview
 
-This is an immersive first-person role-playing game where you navigate through procedurally generated server rooms, interact with AI-powered NPCs, solve programming puzzles, and uncover the mysterious "Iceberg Protocol." The game combines elements of stealth, exploration, and hacking challenges in a retro-cyberpunk aesthetic.
+Penguin Hacker RPG is an immersive first-person role-playing game where you navigate through procedurally generated server rooms, interact with AI-powered NPCs, solve programming puzzles, and uncover the mysterious "Iceberg Protocol." The game combines elements of stealth, exploration, and hacking challenges in a retro-cyberpunk aesthetic.
 
 ## Features
 
 - **Dynamic 3D Environment**: Explore procedurally generated network facilities rendered with THREE.js
 - **Procedural Level Generation**: Each level is uniquely generated based on coordinates in the virtual world
-- **AI-Powered NPCs**: Chat with NPCs powered by advanced language models (Groq API with Llama 3.3), each with unique personalities and knowledge
+- **AI-Powered NPCs**: Chat with NPCs powered by the Ollama API, each with unique personalities and knowledge
 - **Programming Challenges**: Solve various hacking-themed puzzles including:
   - Terminal command challenges
   - Regular expression pattern matching
@@ -31,7 +30,7 @@ This is an immersive first-person role-playing game where you navigate through p
 - **THREE.js** for 3D rendering and environment
 - **JavaScript** for game logic and user interaction
 - **HTML5/CSS3** for UI elements and styling
-- **Groq API** with Llama 3.3 70B model for NPC conversation generation
+- **Ollama API** for NPC conversation generation
 
 ### Architecture
 
@@ -42,40 +41,32 @@ The game is structured as follows:
 - **script.js**: Core game engine using THREE.js for rendering and game logic
 - **level_generator.php**: Procedural level generation system
 - **puzzle_generator.php**: Programming puzzle management
-- **npc_handler.php**: NPC interaction system with Groq API integration
+- **npc_handler.php**: NPC interaction system with Ollama API integration
 
 ## Setup and Installation
 
 ### Prerequisites
 
 - Web server with PHP 7.0+
-- Groq API key (set as environment variable in config.php file (add it) `GROQ_API_KEY`)
+- [Ollama](https://github.com/ollama/ollama) installed locally (for NPC conversations)
 
 ### Installation
 
 1. Clone the repository to your web server:
    ```
-   git clone https://github.com/lalomorales22/penguin-programming-game.git
+   git clone https://github.com/yourusername/penguin-hacker-rpg.git
    ```
 
-2. Set up your environment variables in the config.php file:
-   ```
-   GROQ_API_KEY="your_groq_api_key_here"
+2. Ensure Ollama is running and accessible at `http://localhost:11434`
 
-   ```
-
-3. In Terminal run a php server in that directory:
-4. ```
-   php -S localhost:8000
-   ```
-   Open your web browser and navigate to the game URL on your server
+3. Open your web browser and navigate to the game URL on your server
 
 ## How to Play
 
 ### Objectives
 
 - Explore the facility and navigate through different server rooms
-- Interact with AI NPCs to gather information about the Iceberg Protocol
+- Interact with NPCs to gather information about the Iceberg Protocol
 - Solve puzzles to increase your skills and gain access to restricted areas
 - Find and decode the Iceberg Protocol data
 
@@ -98,8 +89,6 @@ The in-game terminal supports various commands:
 - `whoami`: Display current user information
 - `ping`: Test network connection
 - `status`: Show system status
-- `override --auth=[USERNAME]`: Override security for authorized users
-- `search [string]`: Search for files containing string
 - `exit`: Close terminal
 
 ## Game Mechanics
@@ -110,7 +99,7 @@ Each level is generated based on its coordinates in the virtual world. Different
 
 ### NPC Conversations
 
-NPCs use the Groq API with Llama 3.3 70B model to generate contextual responses based on their personality profiles:
+NPCs use the Ollama API to generate contextual responses based on their personality profiles:
 - **Sysadmin**: Technical, paranoid about security breaches
 - **Junior Technician**: Nervous, accidentally shares sensitive information
 - **Security AI**: Cold, precise, monitors for unauthorized access
@@ -141,18 +130,9 @@ Future development plans include:
 - **Visual Upgrades**: Character customization and visual skill effects
 - **Multiplayer Support**: Allow multiple hackers to collaborate
 
-## AI Integration
-
-The NPCs in Penguin Hacker RPG leverage state-of-the-art language models to create dynamic and realistic conversations:
-
-- **Groq API**: High-performance inference API used to communicate with the language model
-- **Llama 3.3 70B Versatile**: Meta AI's large language model used for generating contextually relevant NPC responses
-- **Custom Personality Prompts**: Each NPC type has a unique persona and knowledge base that influences their responses
-- **Conversation Memory**: The game maintains a history of your conversations with each NPC for continuity
-
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request to the [GitHub repository](https://github.com/lalomorales22/penguin-programming-game).
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
@@ -162,8 +142,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Special thanks to all cyberpunk fiction that inspired this game
 - The THREE.js community for the amazing 3D web library
-- Meta AI for the Llama 3.3 model
-- Groq for their high-performance inference API
+- The Ollama team for their open-source AI infrastructure
 
 ---
 
