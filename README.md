@@ -1,8 +1,8 @@
 # Penguin Hacker RPG
 
 A cyberpunk-themed, browser-based 3D hacking game where you play as a hooded penguin infiltrating a high-security corporate network.
+![Screenshot 2025-04-01 at 3 45 10 PM](https://github.com/user-attachments/assets/52cdf536-f7dc-4e68-bcca-e8f50f3f4b98)
 
-![Penguin Hacker RPG Screenshot](screenshot.png)
 
 ## Overview
 
