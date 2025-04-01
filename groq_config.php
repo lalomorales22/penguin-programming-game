@@ -6,5 +6,5 @@
  */
 
 // Your Groq API key
-putenv('GROQ_API_KEY=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');
+putenv('GROQ_API_KEY=ENTER_GROQ_API_KEY');
 ?>
